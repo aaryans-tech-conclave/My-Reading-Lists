@@ -1,0 +1,155 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isVerified() && (
+        request.auth.token.email == "kumar.aaryan2003@gmail.com" ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // 1. Books Collection
+    function isValidBook(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.author_id is string && data.author_id.size() <= 128 &&
+             data.status in ['TBR', 'Currently Reading', 'Read', 'DNF'] &&
+             data.is_owned is bool &&
+             data.format in ['Physical', 'eReader', 'Audiobook'] &&
+             (!('star_rating' in data) || (data.star_rating is number && data.star_rating >= 0 && data.star_rating <= 5)) &&
+             (!('pages_read' in data) || (data.pages_read is number && data.pages_read >= 0)) &&
+             (!('total_pages' in data) || (data.total_pages is number && data.total_pages >= 0)) &&
+             (!('cover_image_url' in data) || (data.cover_image_url is string && data.cover_image_url.size() <= 1000)) &&
+             (!('long_text_review' in data) || (data.long_text_review is string && data.long_text_review.size() <= 100000)) &&
+             (!('genre_tags' in data) || (data.genre_tags is list && data.genre_tags.size() <= 10)) &&
+             (!('spine_color' in data) || (data.spine_color is string && data.spine_color.size() <= 64)) &&
+             (!('purchase_date' in data) || (data.purchase_date is string && data.purchase_date.size() <= 64));
+    }
+
+    match /books/{bookId} {
+      allow read: if true;
+      allow create: if isValidId(bookId) && isAdmin() && isValidBook(incoming());
+      allow update: if isValidId(bookId) && isAdmin() && isValidBook(incoming());
+      allow delete: if isValidId(bookId) && isAdmin();
+    }
+
+    // 2. Authors Collection
+    function isValidAuthor(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 128 &&
+             (!('cover_image_url' in data) || (data.cover_image_url is string && data.cover_image_url.size() <= 1000)) &&
+             (!('pronouns' in data) || (data.pronouns is string && data.pronouns.size() <= 32)) &&
+             (!('nationality' in data) || (data.nationality is string && data.nationality.size() <= 64)) &&
+             (!('is_favorite' in data) || data.is_favorite is bool);
+    }
+
+    match /authors/{authorId} {
+      allow read: if true;
+      allow create: if isValidId(authorId) && isAdmin() && isValidAuthor(incoming());
+      allow update: if isValidId(authorId) && isAdmin() && isValidAuthor(incoming());
+      allow delete: if isValidId(authorId) && isAdmin();
+    }
+
+    // 3. Series Collection
+    function isValidSeries(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() <= 150 &&
+             data.author_id is string && data.author_id.size() <= 128 &&
+             data.status in ['Not Started', 'In Progress', 'Caught Up', 'Completed'];
+    }
+
+    match /series/{seriesId} {
+      allow read: if true;
+      allow create: if isValidId(seriesId) && isAdmin() && isValidSeries(incoming());
+      allow update: if isValidId(seriesId) && isAdmin() && isValidSeries(incoming());
+      allow delete: if isValidId(seriesId) && isAdmin();
+    }
+
+    // 4. Reading Goals Collection
+    function isValidGoal(data) {
+      return data.year is number && data.year >= 2000 && data.year <= 2100 &&
+             data.target_books is number && data.target_books >= 0;
+    }
+
+    match /reading_goals/{goalId} {
+      allow read: if true;
+      allow create: if isValidId(goalId) && isAdmin() && isValidGoal(incoming());
+      allow update: if isValidId(goalId) && isAdmin() && isValidGoal(incoming());
+      allow delete: if isValidId(goalId) && isAdmin();
+    }
+
+    // 5. Daily Habits Collection
+    function isValidHabit(data) {
+      return data.date is string && data.date.size() <= 32 &&
+             (!('read_physical' in data) || data.read_physical is bool) &&
+             (!('read_audio' in data) || data.read_audio is bool);
+    }
+
+    match /daily_habits/{habitId} {
+      allow read: if true;
+      allow create: if isValidId(habitId) && isAdmin() && isValidHabit(incoming());
+      allow update: if isValidId(habitId) && isAdmin() && isValidHabit(incoming());
+      allow delete: if isValidId(habitId) && isAdmin();
+    }
+
+    // 6. Bookcase Snapshots Collection (Community readable, created by visitors or admin, limited payload)
+    function isValidSnapshot(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
+             data.image_data is string && data.image_data.size() <= 500000 &&
+             data.timestamp is number &&
+             data.created_at is string && data.created_at.size() <= 64;
+    }
+
+    match /bookcase_snapshots/{snapshotId} {
+      allow read: if true;
+      allow create: if isValidId(snapshotId) && isValidSnapshot(incoming());
+      allow update: if isValidId(snapshotId) && isAdmin() && isValidSnapshot(incoming());
+      allow delete: if isValidId(snapshotId); // allows pruning oldest if limit exceeded or admin cleanup
+    }
+
+    // 7. App Settings Collection
+    function isValidSettings(data) {
+      return data.banner_title is string && data.banner_title.size() <= 120 &&
+             (!('quote_text' in data) || (data.quote_text is string && data.quote_text.size() <= 500)) &&
+             (!('quote_author' in data) || (data.quote_author is string && data.quote_author.size() <= 100)) &&
+             (!('banner_image_url' in data) || (data.banner_image_url is string && data.banner_image_url.size() <= 1000));
+    }
+
+    match /app_settings/{settingsId} {
+      allow read: if true;
+      allow create: if isValidId(settingsId) && isAdmin() && isValidSettings(incoming());
+      allow update: if isValidId(settingsId) && isAdmin() && isValidSettings(incoming());
+      allow delete: if isValidId(settingsId) && isAdmin();
+    }
+
+    // 8. Admins Collection
+    match /admins/{adminUid} {
+      allow read: if isAdmin();
+      allow write: if false; // Only manageable through Firebase Console or provisioned root
+    }
+  }
+}

@@ -1,0 +1,160 @@
+{
+  "entities": {
+    "Book": {
+      "title": "Book",
+      "description": "A book item in the library collection",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 200, "description": "The title of the book" },
+        "author_id": { "type": "string", "maxLength": 128, "description": "Referenced author ID" },
+        "series_id": { "type": "string", "maxLength": 128, "description": "Optional referenced series ID" },
+        "cover_image_url": { "type": "string", "maxLength": 1000, "description": "Direct image URL for book cover" },
+        "status": { "type": "string", "enum": ["TBR", "Currently Reading", "Read", "DNF"], "description": "Reading progress status" },
+        "is_owned": { "type": "boolean", "description": "Whether the user physically or digitally owns the book" },
+        "purchase_date": { "type": "string", "maxLength": 64, "description": "ISO date string of acquisition" },
+        "star_rating": { "type": "number", "description": "Rating from 0.0 to 5.0" },
+        "pages_read": { "type": "number", "description": "Pages read so far" },
+        "total_pages": { "type": "number", "description": "Total page count" },
+        "date_started": { "type": "string", "maxLength": 64, "description": "Date reading started" },
+        "date_finished": { "type": "string", "maxLength": 64, "description": "Date reading completed" },
+        "format": { "type": "string", "enum": ["Physical", "eReader", "Audiobook"], "description": "Media format" },
+        "genre_tags": { "type": "array", "description": "Array of genre tag strings" },
+        "long_text_review": { "type": "string", "maxLength": 100000, "description": "Rich text or markdown long-form review" },
+        "spine_color": { "type": "string", "maxLength": 64, "description": "Hex or theme color for digital bookcase spine" },
+        "spine_accent": { "type": "string", "maxLength": 64, "description": "Accent foil color" },
+        "shelf_index": { "type": "number", "description": "Current shelf index on the interactive bookcase" },
+        "shelf_position": { "type": "number", "description": "Order position on the bookcase shelf" },
+        "createdAt": { "type": "string", "maxLength": 64, "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "maxLength": 64, "description": "Last update timestamp" }
+      },
+      "required": ["title", "author_id", "status", "is_owned", "format"]
+    },
+    "Author": {
+      "title": "Author",
+      "description": "An author entry linked to books",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 128, "description": "Author full name" },
+        "cover_image_url": { "type": "string", "maxLength": 1000, "description": "Author portrait URL" },
+        "pronouns": { "type": "string", "maxLength": 32, "description": "Author pronouns" },
+        "nationality": { "type": "string", "maxLength": 64, "description": "Author nationality" },
+        "is_favorite": { "type": "boolean", "description": "Favorite author flag" },
+        "bio": { "type": "string", "maxLength": 1000, "description": "Short author bio" },
+        "createdAt": { "type": "string", "maxLength": 64, "description": "Creation timestamp" }
+      },
+      "required": ["name"]
+    },
+    "SeriesItem": {
+      "title": "SeriesItem",
+      "description": "A book series entry",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 150, "description": "Series title" },
+        "author_id": { "type": "string", "maxLength": 128, "description": "Author ID" },
+        "status": { "type": "string", "enum": ["Not Started", "In Progress", "Caught Up", "Completed"], "description": "Series progression status" },
+        "total_books": { "type": "number", "description": "Total volumes in series" },
+        "books_read": { "type": "number", "description": "Volumes finished" },
+        "createdAt": { "type": "string", "maxLength": 64, "description": "Creation timestamp" }
+      },
+      "required": ["title", "author_id", "status"]
+    },
+    "ReadingGoal": {
+      "title": "ReadingGoal",
+      "description": "Target book reading goals for a specific year",
+      "type": "object",
+      "properties": {
+        "year": { "type": "number", "description": "Target calendar year" },
+        "target_books": { "type": "number", "description": "Goal count of books" },
+        "books_completed_count": { "type": "number", "description": "Calculated books completed count" }
+      },
+      "required": ["year", "target_books"]
+    },
+    "DailyHabit": {
+      "title": "DailyHabit",
+      "description": "Daily reading habit entry",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "maxLength": 32, "description": "YYYY-MM-DD date key" },
+        "read_physical": { "type": "boolean", "description": "Completed physical reading" },
+        "read_audio": { "type": "boolean", "description": "Completed audiobook listening" },
+        "minutes_read": { "type": "number", "description": "Estimated minutes read" }
+      },
+      "required": ["date"]
+    },
+    "BookcaseSnapshot": {
+      "title": "BookcaseSnapshot",
+      "description": "Snapshot capture of interactive digital bookcase arrangement",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 100, "description": "Custom title or timestamp label" },
+        "created_by_name": { "type": "string", "maxLength": 64, "description": "Display name of arranger" },
+        "created_by_uid": { "type": "string", "maxLength": 128, "description": "UID or anonymous ID" },
+        "created_at": { "type": "string", "maxLength": 64, "description": "ISO timestamp" },
+        "timestamp": { "type": "number", "description": "Numeric epoch millisecond timestamp for sorting" },
+        "image_data": { "type": "string", "maxLength": 500000, "description": "Data URL image representation of bookshelf" },
+        "book_count": { "type": "number", "description": "Number of books arranged" }
+      },
+      "required": ["title", "created_at", "image_data", "timestamp"]
+    },
+    "AppSettings": {
+      "title": "AppSettings",
+      "description": "Custom portfolio theme, banner, quote, and widget styling",
+      "type": "object",
+      "properties": {
+        "banner_image_url": { "type": "string", "maxLength": 1000, "description": "Cover banner image URL" },
+        "banner_title": { "type": "string", "maxLength": 120, "description": "Portfolio banner title" },
+        "quote_text": { "type": "string", "maxLength": 500, "description": "Featured editable quote block" },
+        "quote_author": { "type": "string", "maxLength": 100, "description": "Author of the quote" },
+        "theme_palette": { "type": "string", "maxLength": 32, "description": "Preset theme key (sage, rose, lavender, earth, slate)" },
+        "custom_hex": { "type": "string", "maxLength": 16, "description": "Custom HEX accent" },
+        "widget_order": { "type": "array", "description": "List of widget ID order" }
+      },
+      "required": ["banner_title"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Designated administrator record",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "maxLength": 128, "description": "Admin email address" },
+        "role": { "type": "string", "enum": ["admin"], "description": "Role descriptor" },
+        "createdAt": { "type": "string", "maxLength": 64, "description": "Registration date" }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/books/{bookId}": {
+      "schema": "Book",
+      "description": "Books in the user's library"
+    },
+    "/authors/{authorId}": {
+      "schema": "Author",
+      "description": "Authors linked to books"
+    },
+    "/series/{seriesId}": {
+      "schema": "SeriesItem",
+      "description": "Book series tracking"
+    },
+    "/reading_goals/{goalId}": {
+      "schema": "ReadingGoal",
+      "description": "Yearly reading goals"
+    },
+    "/daily_habits/{habitId}": {
+      "schema": "DailyHabit",
+      "description": "Daily reading habit logs"
+    },
+    "/bookcase_snapshots/{snapshotId}": {
+      "schema": "BookcaseSnapshot",
+      "description": "Publicly viewable snapshots of the digital bookcase (capped to latest 10)"
+    },
+    "/app_settings/{settingsId}": {
+      "schema": "AppSettings",
+      "description": "Global layout, banner, quote, and theme customization"
+    },
+    "/admins/{adminUid}": {
+      "schema": "Admin",
+      "description": "Admin identity records"
+    }
+  }
+}

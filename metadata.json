@@ -1,0 +1,6 @@
+{
+  "name": "Aaryan's - Curated Reading Tracker & Interactive Library",
+  "description": "Curated reading tracker portfolio with invisible admin mode, expanding widgets, rich reading reviews, and an interactive digital bookshelf with shareable snapshots.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
