@@ -21,80 +21,56 @@ export const StatisticsView: React.FC = () => {
 
   const [activeFilterTab, setActiveFilterTab] = useState<'2025' | 'this-month' | 'all-time'>('2025');
 
-  const STATS_MONTHS = [
-    {
-      month: 'January 2025',
-      books: ['The Obelisk Gate', 'The Fifth Season'],
-      totalBooks: 2,
-      totalPages: 1000,
-      hoursListened: 10,
-      avgRating: 3.5,
-      dnf: 0,
-    },
-    {
-      month: 'February 2025',
-      books: ['The Stone Sky'],
-      totalBooks: 1,
-      totalPages: 350,
-      hoursListened: 0,
-      avgRating: 5.0,
-      dnf: 0,
-    },
-    {
-      month: 'March 2025',
-      books: [],
-      totalBooks: 0,
-      totalPages: 0,
-      hoursListened: 0,
-      avgRating: 0,
-      dnf: 0,
-    },
-    {
-      month: 'April 2025',
-      books: [],
-      totalBooks: 0,
-      totalPages: 0,
-      hoursListened: 0,
-      avgRating: 0,
-      dnf: 0,
-    },
-    {
-      month: 'May 2025',
-      books: [],
-      totalBooks: 0,
-      totalPages: 0,
-      hoursListened: 0,
-      avgRating: 0,
-      dnf: 0,
-    },
-    {
-      month: 'June 2025',
-      books: [],
-      totalBooks: 0,
-      totalPages: 0,
-      hoursListened: 0,
-      avgRating: 0,
-      dnf: 0,
-    },
-    {
-      month: 'July 2025',
-      books: [],
-      totalBooks: 0,
-      totalPages: 0,
-      hoursListened: 0,
-      avgRating: 0,
-      dnf: 0,
-    },
-    {
-      month: 'August 2025',
-      books: [],
-      totalBooks: 0,
-      totalPages: 0,
-      hoursListened: 0,
-      avgRating: 0,
-      dnf: 0,
-    },
+  const readBooks = books.filter((b) => b.status === 'Read');
+  const dnfBooks = books.filter((b) => b.status === 'DNF');
+  const totalReadPages = readBooks.reduce((sum, b) => sum + (b.total_pages || 0), 0);
+
+  const MONTHS_CONFIG = [
+    { name: 'January 2025', monthIdx: 0, year: 2025 },
+    { name: 'February 2025', monthIdx: 1, year: 2025 },
+    { name: 'March 2025', monthIdx: 2, year: 2025 },
+    { name: 'April 2025', monthIdx: 3, year: 2025 },
+    { name: 'May 2025', monthIdx: 4, year: 2025 },
+    { name: 'June 2025', monthIdx: 5, year: 2025 },
+    { name: 'July 2025', monthIdx: 6, year: 2025 },
+    { name: 'August 2025', monthIdx: 7, year: 2025 },
+    { name: 'September 2025', monthIdx: 8, year: 2025 },
+    { name: 'October 2025', monthIdx: 9, year: 2025 },
+    { name: 'November 2025', monthIdx: 10, year: 2025 },
+    { name: 'December 2025', monthIdx: 11, year: 2025 },
   ];
+
+  const STATS_MONTHS = MONTHS_CONFIG.map(({ name, monthIdx, year }) => {
+    const monthBooks = readBooks.filter((b) => {
+      if (b.date_finished) {
+        const d = new Date(b.date_finished);
+        return d.getFullYear() === year && d.getMonth() === monthIdx;
+      }
+      return false;
+    });
+
+    const monthDnf = dnfBooks.filter((b) => {
+      if (b.date_finished) {
+        const d = new Date(b.date_finished);
+        return d.getFullYear() === year && d.getMonth() === monthIdx;
+      }
+      return false;
+    }).length;
+
+    const totalPages = monthBooks.reduce((sum, b) => sum + (b.total_pages || 0), 0);
+    const hoursListened = monthBooks
+      .filter((b) => b.format === 'Audiobook')
+      .reduce((sum, b) => sum + Math.round((b.total_pages || 300) / 35), 0);
+
+    return {
+      month: name,
+      books: monthBooks.map((b) => b.title),
+      totalBooks: monthBooks.length,
+      totalPages,
+      hoursListened,
+      dnf: monthDnf,
+    };
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
@@ -251,7 +227,7 @@ export const StatisticsView: React.FC = () => {
 
         {/* Summary Footer Row */}
         <div className="p-3 bg-stone-50 dark:bg-stone-800/40 text-[11px] font-mono text-stone-500 border-t border-stone-100 dark:border-stone-800 flex justify-between items-center">
-          <span>3 books • 1350 pages</span>
+          <span>{readBooks.length} books • {totalReadPages} pages</span>
         </div>
       </div>
 

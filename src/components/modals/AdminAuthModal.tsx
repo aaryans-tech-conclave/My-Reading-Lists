@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Shield, Lock, CheckCircle, ArrowRight, Sparkles, Key, Trash2, RotateCcw, BookPlus, Info } from 'lucide-react';
+import { X, Shield, Lock, CheckCircle, ArrowRight, Sparkles, Key, Trash2, RotateCcw, BookPlus, Info, Copy, ExternalLink, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -9,11 +9,10 @@ export const AdminAuthModal: React.FC = () => {
     isAuthModalOpen,
     closeAuthModal,
     loginWithGoogle,
+    loginWithGoogleRedirect,
     isAdmin,
     user,
     logout,
-    toggleDevAdminSimulation,
-    isDevSimulatedAdmin,
   } = useAuth();
   const { clearAllBooks, resetToDefaultData, books } = useData();
   const { theme } = useTheme();
@@ -21,20 +20,60 @@ export const AdminAuthModal: React.FC = () => {
   const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [confirmMsg, setConfirmMsg] = useState<string | null>(null);
+  const [showVercelGuide, setShowVercelGuide] = useState(false);
+  const [copiedEnv, setCopiedEnv] = useState(false);
+  const [copiedDomain, setCopiedDomain] = useState(false);
 
   if (!isAuthModalOpen) return null;
+
+  const currentHostname = typeof window !== 'undefined' ? window.location.hostname : '';
 
   const handleGoogleSignIn = async () => {
     setIsLoadingGoogle(true);
     setErrorMsg(null);
     try {
       await loginWithGoogle();
-    } catch (err) {
-      console.error(err);
-      setErrorMsg('Google Sign-In was cancelled or popup was closed.');
+    } catch (err: any) {
+      console.error('Google Sign-in error:', err);
+      if (err?.code === 'auth/unauthorized-domain') {
+        setErrorMsg(
+          `Domain Unauthorized in Firebase: "${currentHostname}" has not been added to your Firebase project authorized domains list. Follow the guide below to add it in 30 seconds.`
+        );
+        setShowVercelGuide(true);
+      } else if (err?.code === 'auth/popup-blocked') {
+        setErrorMsg('Sign-in popup was blocked by browser. Attempting direct redirect...');
+        try {
+          await loginWithGoogleRedirect();
+        } catch (redirErr: any) {
+          setErrorMsg(`Redirect failed: ${redirErr?.message || 'Please enable popups for this domain in your browser settings.'}`);
+        }
+      } else if (err?.code === 'auth/popup-closed-by-user') {
+        setErrorMsg('Sign-in popup was closed before completing login.');
+      } else {
+        setErrorMsg(`Google Sign-In failed: ${err?.message || 'Please check network and Firebase configuration.'}`);
+      }
     } finally {
       setIsLoadingGoogle(false);
     }
+  };
+
+  const handleCopyEnv = () => {
+    const envText = `VITE_FIREBASE_API_KEY=AIzaSyCK8BOu-MiuBeCYyffJD4uKDM1cIsMEZ7k
+VITE_FIREBASE_AUTH_DOMAIN=mystic-sled-9zbz0.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=mystic-sled-9zbz0
+VITE_FIREBASE_STORAGE_BUCKET=mystic-sled-9zbz0.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=964978876760
+VITE_FIREBASE_APP_ID=1:964978876760:web:22d6d5386af673350a452d
+VITE_FIREBASE_DATABASE_ID=ai-studio-7df4f68b-18f5-4bf6-8ac0-118220c85b78`;
+    navigator.clipboard.writeText(envText);
+    setCopiedEnv(true);
+    setTimeout(() => setCopiedEnv(false), 2500);
+  };
+
+  const handleCopyDomain = () => {
+    navigator.clipboard.writeText(currentHostname);
+    setCopiedDomain(true);
+    setTimeout(() => setCopiedDomain(false), 2500);
   };
 
   const handleClearMockup = async () => {
@@ -165,10 +204,90 @@ export const AdminAuthModal: React.FC = () => {
             </button>
 
             {errorMsg && (
-              <p className="text-[11px] text-rose-500 text-center font-medium">
-                {errorMsg}
-              </p>
+              <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900 text-xs space-y-2 text-rose-800 dark:text-rose-200">
+                <div className="flex items-start space-x-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                  <p className="leading-snug">{errorMsg}</p>
+                </div>
+
+                {errorMsg.includes('Unauthorized') && currentHostname && (
+                  <div className="pt-2 border-t border-rose-200/60 dark:border-rose-900/60 flex items-center justify-between text-[11px]">
+                    <span className="font-mono text-stone-600 dark:text-stone-300 truncate max-w-[200px]">
+                      {currentHostname}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCopyDomain}
+                      className="px-2 py-1 rounded-lg bg-rose-200/80 dark:bg-rose-900 text-rose-900 dark:text-rose-100 font-medium flex items-center space-x-1 cursor-pointer hover:bg-rose-300"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>{copiedDomain ? 'Copied!' : 'Copy Domain'}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
+
+            {/* Vercel Deployment & OAuth Setup Guide Accordion */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setShowVercelGuide(!showVercelGuide)}
+                className="w-full flex items-center justify-between p-3 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700/80 text-xs font-semibold text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-750 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center space-x-2">
+                  <Info className="w-4 h-4 text-amber-600" />
+                  <span>Vercel Deployment & OAuth Configuration Guide</span>
+                </div>
+                {showVercelGuide ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+
+              {showVercelGuide && (
+                <div className="mt-2 p-4 rounded-2xl bg-stone-50 dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700 space-y-3.5 text-xs text-stone-700 dark:text-stone-300 animate-in fade-in">
+                  <div>
+                    <h4 className="font-bold text-stone-900 dark:text-stone-100 mb-1">
+                      1. Authorize your Vercel Domain in Firebase
+                    </h4>
+                    <p className="text-[11px] text-stone-600 dark:text-stone-400 leading-relaxed">
+                      Firebase rejects Google OAuth logins from any domain not in its whitelist:
+                    </p>
+                    <ol className="list-decimal pl-4 space-y-1 text-[11px] text-stone-600 dark:text-stone-400 mt-1.5">
+                      <li>Open <a href="https://console.firebase.google.com/project/mystic-sled-9zbz0/authentication/settings" target="_blank" rel="noreferrer" className="text-blue-600 dark:text-blue-400 underline font-semibold">Firebase Console Authentication Settings</a>.</li>
+                      <li>Scroll down to <strong>"Authorized Domains"</strong>.</li>
+                      <li>Click <strong>"Add domain"</strong> and enter: <code className="px-1.5 py-0.5 rounded bg-stone-200 dark:bg-stone-700 font-mono text-[10px]">{currentHostname || 'your-app.vercel.app'}</code>.</li>
+                    </ol>
+                  </div>
+
+                  <div className="pt-2 border-t border-stone-200 dark:border-stone-700">
+                    <div className="flex items-center justify-between mb-1">
+                      <h4 className="font-bold text-stone-900 dark:text-stone-100">
+                        2. Environment Variables for Vercel
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={handleCopyEnv}
+                        className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-semibold flex items-center space-x-1 cursor-pointer transition-colors"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>{copiedEnv ? 'Copied 7 Variables!' : 'Copy All Env Vars'}</span>
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-stone-600 dark:text-stone-400 mb-2 leading-relaxed">
+                      Paste these into your Vercel Project Settings &rarr; Environment Variables:
+                    </p>
+                    <pre className="p-2.5 rounded-xl bg-stone-900 text-amber-300 font-mono text-[10px] overflow-x-auto leading-relaxed">
+{`VITE_FIREBASE_API_KEY=AIzaSyCK8BOu-MiuBeCYyffJD4uKDM1cIsMEZ7k
+VITE_FIREBASE_AUTH_DOMAIN=mystic-sled-9zbz0.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=mystic-sled-9zbz0
+VITE_FIREBASE_STORAGE_BUCKET=mystic-sled-9zbz0.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=964978876760
+VITE_FIREBASE_APP_ID=1:964978876760:web:22d6d5386af673350a452d
+VITE_FIREBASE_DATABASE_ID=ai-studio-7df4f68b-18f5-4bf6-8ac0-118220c85b78`}
+                    </pre>
+                  </div>
+                </div>
+              )}
+            </div>
 
           </div>
         )}

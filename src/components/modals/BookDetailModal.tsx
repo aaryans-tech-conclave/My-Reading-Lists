@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   X,
   Star,
@@ -16,6 +16,11 @@ import {
   Heading2,
   Trash2,
   ExternalLink,
+  Tag,
+  Plus,
+  Check,
+  Layers,
+  ArrowRight,
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
@@ -27,14 +32,16 @@ interface BookDetailModalProps {
   book: Book;
   onClose: () => void;
   onSelectAuthor?: (authorId: string) => void;
+  onSelectSeries?: (seriesId: string) => void;
 }
 
 export const BookDetailModal: React.FC<BookDetailModalProps> = ({
   book,
   onClose,
   onSelectAuthor,
+  onSelectSeries,
 }) => {
-  const { authors, updateBook, deleteBook } = useData();
+  const { authors, books, series, updateBook, deleteBook } = useData();
   const { isAdmin } = useAuth();
   const { accentClass } = useTheme();
 
@@ -46,52 +53,119 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
   const [starRating, setStarRating] = useState(book.star_rating || 0);
   const [status, setStatus] = useState<BookStatus>(book.status);
   const [pagesRead, setPagesRead] = useState(book.pages_read || 0);
+  const [genreTags, setGenreTags] = useState<string[]>(book.genre_tags || []);
+  const [customTagInput, setCustomTagInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isRatingSaved, setIsRatingSaved] = useState(false);
+
+  // Derive all available genres across the library
+  const availableGenres = useMemo(() => {
+    const defaults = [
+      'Fantasy', 'Sci-Fi', 'Literary Fiction', 'Mystery', 'Thriller',
+      'Historical Fiction', 'Romance', 'Non-Fiction', 'Memoir', 'Biography',
+      'Horror', 'Classics', 'Dystopian', 'Magical Realism', 'Graphic Novel',
+      'Philosophy', 'Young Adult', 'Mythology'
+    ];
+    const set = new Set<string>(defaults);
+    books.forEach((b) => {
+      b.genre_tags?.forEach((t) => {
+        const cleaned = t.trim();
+        if (cleaned) set.add(cleaned);
+      });
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [books]);
+
+  // Quick save rating button for curator (even if text review hasn't been changed)
+  const handleQuickSaveRating = async () => {
+    setIsSaving(true);
+    try {
+      const updates: Partial<Book> = { star_rating: starRating };
+      if (book.status === 'TBR' && starRating > 0) {
+        updates.status = 'Read';
+        setStatus('Read');
+      }
+      await updateBook(book.id, updates);
+      setIsRatingSaved(true);
+      setTimeout(() => setIsRatingSaved(false), 2500);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Star Rating Interactive Component (Allows half-stars)
   const renderInteractiveStars = () => {
     return (
-      <div className="flex items-center space-x-1">
-        {[1, 2, 3, 4, 5].map((starNum) => {
-          const filled = starRating >= starNum;
-          const halfFilled = !filled && starRating >= starNum - 0.5;
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center space-x-1">
+          {[1, 2, 3, 4, 5].map((starNum) => {
+            const filled = starRating >= starNum;
+            const halfFilled = !filled && starRating >= starNum - 0.5;
 
-          return (
-            <button
-              key={starNum}
-              type="button"
-              disabled={!isAdmin}
-              onClick={() => {
-                if (!isAdmin) return;
-                // If clicked exact same, cycle: full -> half -> 0
-                if (starRating === starNum) {
-                  setStarRating(starNum - 0.5);
-                } else if (starRating === starNum - 0.5) {
-                  setStarRating(starNum - 1);
-                } else {
-                  setStarRating(starNum);
-                }
-              }}
-              title={isAdmin ? `Set rating to ${starNum} or half-click for ${starNum - 0.5}` : `${book.star_rating} Stars`}
-              className={`p-0.5 rounded transition-transform ${
-                isAdmin ? 'cursor-pointer hover:scale-115' : 'cursor-default'
-              }`}
-            >
-              <Star
-                className={`w-5 h-5 ${
-                  filled
-                    ? 'fill-amber-400 text-amber-400'
-                    : halfFilled
-                    ? 'fill-amber-400/50 text-amber-400'
-                    : 'text-stone-300 dark:text-stone-700'
+            return (
+              <button
+                key={starNum}
+                type="button"
+                disabled={!isAdmin}
+                onClick={() => {
+                  if (!isAdmin) return;
+                  if (starRating === starNum) {
+                    setStarRating(starNum - 0.5);
+                  } else if (starRating === starNum - 0.5) {
+                    setStarRating(starNum - 1);
+                  } else {
+                    setStarRating(starNum);
+                  }
+                }}
+                title={isAdmin ? `Set rating to ${starNum} or half-click for ${starNum - 0.5}` : `${book.star_rating} Stars`}
+                className={`p-0.5 rounded transition-transform ${
+                  isAdmin ? 'cursor-pointer hover:scale-115' : 'cursor-default'
                 }`}
-              />
-            </button>
-          );
-        })}
-        <span className="ml-2 font-mono text-sm font-semibold text-amber-600 dark:text-amber-400">
-          {starRating > 0 ? starRating.toFixed(1) : 'Unrated'}
-        </span>
+              >
+                <Star
+                  className={`w-5 h-5 ${
+                    filled
+                      ? 'fill-amber-400 text-amber-400'
+                      : halfFilled
+                      ? 'fill-amber-400/50 text-amber-400'
+                      : 'text-stone-300 dark:text-stone-700'
+                  }`}
+                />
+              </button>
+            );
+          })}
+          <span className="ml-2 font-mono text-sm font-semibold text-amber-600 dark:text-amber-400">
+            {starRating > 0 ? starRating.toFixed(1) : 'Unrated'}
+          </span>
+        </div>
+
+        {/* Dedicated Save Rating Button if rating has changed without needing text review edit */}
+        {isAdmin && (starRating !== (book.star_rating || 0) || ((book.star_rating || 0) === 0 && starRating > 0)) && (
+          <button
+            type="button"
+            onClick={handleQuickSaveRating}
+            disabled={isSaving}
+            className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center space-x-1.5 shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer animate-in fade-in ring-2 ring-amber-400/40"
+          >
+            <Save className="w-3.5 h-3.5" />
+            <span>{isSaving ? 'Saving...' : `Save Rating (${starRating.toFixed(1)} ★)`}</span>
+          </button>
+        )}
+
+        {isAdmin && (book.star_rating || 0) === 0 && starRating === 0 && (
+          <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium italic">
+            Click stars to rate & save
+          </span>
+        )}
+
+        {isRatingSaved && (
+          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center space-x-1 animate-in fade-in">
+            <CheckCircle className="w-3.5 h-3.5" />
+            <span>Rating Saved!</span>
+          </span>
+        )}
       </div>
     );
   };
@@ -118,6 +192,7 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
         star_rating: starRating,
         status,
         pages_read: pagesRead,
+        genre_tags: genreTags,
       });
       setIsEditingReview(false);
     } catch (err) {
@@ -311,7 +386,7 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
                     </select>
                   ) : (
                     <span className="text-xs font-semibold text-stone-800 dark:text-stone-200">
-                      {formatBookStatus(book.status, book.star_rating)}
+                      {book.status}
                     </span>
                   )}
                 </div>
@@ -346,8 +421,8 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
               </div>
 
               {/* Genre Tags */}
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {book.genre_tags.map((tag) => (
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                {genreTags.map((tag) => (
                   <span
                     key={tag}
                     className="px-2.5 py-1 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 text-xs font-medium"
@@ -355,6 +430,16 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
                     #{tag}
                   </span>
                 ))}
+                {isAdmin && !isEditingReview && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingReview(true)}
+                    className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-xs font-semibold hover:bg-amber-100 transition-colors cursor-pointer"
+                  >
+                    <Tag className="w-3 h-3 text-amber-600" />
+                    <span>Edit Tags</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -379,14 +464,119 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
                   className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white ${accentClass.bg} shadow-sm hover:opacity-95 transition-all cursor-pointer`}
                 >
                   <Save className="w-3.5 h-3.5" />
-                  <span>{isSaving ? 'Saving...' : 'Save Review'}</span>
+                  <span>{isSaving ? 'Saving...' : 'Save Review & Tags'}</span>
                 </button>
               )}
             </div>
 
             {/* WYSIWYG / Markdown Editor (Admin) vs Rendered View (Public) */}
             {isAdmin && isEditingReview ? (
-              <div className="space-y-2">
+              <div className="space-y-4">
+                {/* Genre Tags Editor: Choose as many available genres as desired */}
+                <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Tag className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-stone-800 dark:text-stone-200">
+                        Edit Genre Tags ({genreTags.length} selected)
+                      </h4>
+                    </div>
+                    <span className="text-[11px] text-stone-500 font-mono">
+                      Click any genre to toggle
+                    </span>
+                  </div>
+
+                  {/* Active Selected Tags */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {genreTags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-amber-600 text-white text-xs font-medium shadow-2xs"
+                      >
+                        <span>#{tag}</span>
+                        <button
+                          type="button"
+                          onClick={() => setGenreTags(genreTags.filter((t) => t !== tag))}
+                          className="hover:text-amber-200 cursor-pointer ml-1 p-0.5"
+                          title={`Remove ${tag}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                    {genreTags.length === 0 && (
+                      <span className="text-xs text-stone-400 italic">No genres selected yet. Click options below:</span>
+                    )}
+                  </div>
+
+                  {/* All Available Genres */}
+                  <div className="pt-2 border-t border-amber-200/60 dark:border-amber-800/40 space-y-2">
+                    <span className="text-[11px] font-semibold text-stone-600 dark:text-stone-400 block">
+                      Choose from all cataloged genres:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto custom-scrollbar p-1">
+                      {availableGenres.map((genre) => {
+                        const isSelected = genreTags.includes(genre);
+                        return (
+                          <button
+                            key={genre}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setGenreTags(genreTags.filter((t) => t !== genre));
+                              } else {
+                                setGenreTags([...genreTags, genre]);
+                              }
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center space-x-1 border ${
+                              isSelected
+                                ? 'bg-amber-600 text-white border-amber-600 shadow-2xs font-semibold'
+                                : 'bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-stone-200 dark:border-stone-700 hover:border-amber-400'
+                            }`}
+                          >
+                            {isSelected ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3 text-stone-400" />}
+                            <span>{genre}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Add Custom New Tag */}
+                    <div className="pt-1 flex items-center space-x-2">
+                      <input
+                        type="text"
+                        placeholder="Add new genre tag..."
+                        value={customTagInput}
+                        onChange={(e) => setCustomTagInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const val = customTagInput.trim();
+                            if (val && !genreTags.includes(val)) {
+                              setGenreTags([...genreTags, val]);
+                              setCustomTagInput('');
+                            }
+                          }
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 text-xs w-48 text-stone-900 dark:text-stone-100"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const val = customTagInput.trim();
+                          if (val && !genreTags.includes(val)) {
+                            setGenreTags([...genreTags, val]);
+                            setCustomTagInput('');
+                          }
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-stone-200 dark:bg-stone-700 text-stone-800 dark:text-stone-200 text-xs font-semibold hover:bg-stone-300 dark:hover:bg-stone-600 transition-colors cursor-pointer"
+                      >
+                        + Add Tag
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Formatting Toolbar */}
                 <div className="flex items-center space-x-1 p-2 bg-stone-100 dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300">
                   <button
@@ -452,6 +642,56 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
               <div className="bg-stone-50 dark:bg-stone-950/60 p-6 rounded-2xl border border-stone-200/70 dark:border-stone-800">
                 {renderFormattedReview(book.long_text_review)}
               </div>
+            )}
+
+            {/* Part of Series Hyperlink Banner at Bottom of Review */}
+            {book.series_id && (
+              (() => {
+                const linkedSeries = series.find(
+                  (s) =>
+                    s.id === book.series_id ||
+                    (book.series_id && s.title.toLowerCase() === book.series_id.toLowerCase())
+                );
+                if (!linkedSeries) return null;
+                const seriesVols = books.filter(
+                  (b) =>
+                    b.series_id === linkedSeries.id ||
+                    (b.series_id && linkedSeries.title && b.series_id.toLowerCase() === linkedSeries.title.toLowerCase())
+                );
+
+                return (
+                  <div className="mt-6 p-4.5 rounded-2xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                    <div className="flex items-center space-x-3.5">
+                      <div className="w-10 h-10 rounded-xl bg-amber-600/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                        <Layers className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-amber-700 dark:text-amber-400 block font-mono">
+                          Part of Series
+                        </span>
+                        <h4 className="font-serif font-bold text-sm text-stone-900 dark:text-stone-100">
+                          {linkedSeries.title}
+                        </h4>
+                        <span className="text-xs text-stone-500 dark:text-stone-400">
+                          {seriesVols.length} {seriesVols.length === 1 ? 'book' : 'books'} cataloged in this series
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onSelectSeries?.(linkedSeries.id);
+                      }}
+                      className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-xs cursor-pointer shrink-0"
+                    >
+                      <span>Explore Series & Overall Review</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })()
             )}
           </div>
 

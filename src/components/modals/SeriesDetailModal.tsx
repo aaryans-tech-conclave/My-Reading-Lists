@@ -31,8 +31,13 @@ export const SeriesDetailModal: React.FC<SeriesDetailModalProps> = ({
   const { isAdmin } = useAuth();
   const { theme } = useTheme();
 
-  const author = authors.find((a) => a.id === series.author_id)?.name || 'Unknown Author';
-  const seriesBooks = books.filter((b) => b.series_id === series.id);
+  const seriesBooks = books.filter(
+    (b) =>
+      b.series_id === series.id ||
+      (b.series_id && series.title && b.series_id.trim().toLowerCase() === series.title.trim().toLowerCase())
+  );
+  const authorFromBook = seriesBooks[0] ? authors.find((a) => a.id === seriesBooks[0].author_id)?.name : null;
+  const author = authors.find((a) => a.id === series.author_id)?.name || authorFromBook || 'Unknown Author';
 
   const [isEditing, setIsEditing] = useState(false);
   const [rating, setRating] = useState(series.overall_rating || 5.0);
@@ -55,73 +60,86 @@ export const SeriesDetailModal: React.FC<SeriesDetailModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white dark:bg-stone-900 rounded-3xl w-full max-w-2xl shadow-2xl border border-stone-200 dark:border-stone-800 p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="bg-white dark:bg-stone-900 rounded-3xl w-full max-w-2xl max-h-[85vh] shadow-2xl border border-stone-200 dark:border-stone-800 flex flex-col overflow-hidden relative">
         
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-full text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        {/* STATIC NON-SCROLLING HEADER */}
+        <div className="p-6 sm:p-7 border-b border-stone-200 dark:border-stone-800 shrink-0 bg-white/95 dark:bg-stone-900/95 backdrop-blur-xs relative z-10">
+          {/* Close Button */}
+          <button
+            onClick={onClose}
+            className="absolute top-5 right-5 p-2 rounded-full text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer"
+            title="Close series review"
+          >
+            <X className="w-5 h-5" />
+          </button>
 
-        {/* Header Tag & Title */}
-        <div className="flex items-center space-x-2 text-xs font-semibold text-amber-600 dark:text-amber-400 mb-2">
-          <Layers className="w-4 h-4" />
-          <span className="uppercase tracking-wider font-mono text-[11px]">Series Overall Review</span>
-        </div>
-
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-4 border-b border-stone-200 dark:border-stone-800">
-          <div>
-            <h2 className="text-2xl font-serif font-bold text-stone-900 dark:text-stone-100">
-              {series.title}
-            </h2>
-            <div className="flex items-center space-x-2 text-xs text-stone-500 dark:text-stone-400 mt-1">
-              <User className="w-3.5 h-3.5 text-stone-400" />
-              <span>{author}</span>
-              <span>•</span>
-              <span className="font-mono">{series.total_books} Books</span>
-              <span>•</span>
-              <span className="font-mono">{series.books_read} Read</span>
-            </div>
+          {/* Header Tag */}
+          <div className="flex items-center space-x-2 text-xs font-semibold text-amber-600 dark:text-amber-400 mb-2">
+            <Layers className="w-4 h-4" />
+            <span className="uppercase tracking-wider font-mono text-[11px]">Series Overall Review</span>
           </div>
 
-          {/* Overall Rating Display */}
-          <div className="flex flex-col items-start sm:items-end">
-            <div className="flex items-center space-x-1.5 text-amber-500">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Star
-                  key={star}
-                  className={`w-4 h-4 ${
-                    star <= Math.round(rating)
-                      ? 'fill-amber-400 text-amber-400'
-                      : 'text-stone-300 dark:text-stone-700'
-                  }`}
-                />
-              ))}
-              <span className="font-mono text-xs font-bold text-stone-800 dark:text-stone-200 ml-1">
-                {rating.toFixed(1)}
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pr-8 sm:pr-10">
+            <div>
+              <h2 className="text-2xl font-serif font-bold text-stone-900 dark:text-stone-100 leading-snug">
+                {series.title}
+              </h2>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone-500 dark:text-stone-400 mt-1.5">
+                <div className="flex items-center space-x-1">
+                  <User className="w-3.5 h-3.5 text-stone-400" />
+                  <span>{author}</span>
+                </div>
+                <span>•</span>
+                <span className="font-mono text-stone-700 dark:text-stone-300 font-semibold">
+                  {seriesBooks.length} {seriesBooks.length === 1 ? 'Book' : 'Books'} Registered
+                </span>
+                <span>•</span>
+                <span className="font-mono text-amber-600 dark:text-amber-400 font-semibold">
+                  {seriesBooks.filter((b) => b.status === 'Read').length} Read
+                </span>
+              </div>
+            </div>
+
+            {/* Overall Rating Display */}
+            <div className="flex flex-col items-start sm:items-end shrink-0">
+              <div className="flex items-center space-x-1.5 text-amber-500">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star
+                    key={star}
+                    className={`w-4 h-4 ${
+                      star <= Math.round(rating)
+                        ? 'fill-amber-400 text-amber-400'
+                        : 'text-stone-300 dark:text-stone-700'
+                    }`}
+                  />
+                ))}
+                <span className="font-mono text-xs font-bold text-stone-800 dark:text-stone-200 ml-1">
+                  {rating.toFixed(1)}
+                </span>
+              </div>
+              <span className="text-[10px] text-stone-400 uppercase tracking-wider mt-0.5 font-mono">
+                Series Rating
               </span>
             </div>
-            <span className="text-[10px] text-stone-400 uppercase tracking-wider mt-0.5 font-mono">
-              Series Rating
-            </span>
           </div>
         </div>
 
-        {/* Curator Edit Trigger */}
-        {isAdmin && !isEditing && (
-          <div className="my-3 flex justify-end">
-            <button
-              onClick={() => setIsEditing(true)}
-              className="flex items-center space-x-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-700 dark:text-stone-300 transition-colors cursor-pointer"
-            >
-              <Edit3 className="w-3.5 h-3.5 text-blue-500" />
-              <span>Edit Series Review</span>
-            </button>
-          </div>
-        )}
+        {/* NESTED SCROLLING CONTENT WITH IN-APP THEMED SCROLLBAR */}
+        <div className="flex-1 overflow-y-auto p-6 sm:p-7 space-y-6 custom-scrollbar">
+
+          {/* Curator Edit Trigger */}
+          {isAdmin && !isEditing && (
+            <div className="flex justify-end -mt-1">
+              <button
+                onClick={() => setIsEditing(true)}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 transition-colors cursor-pointer"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-blue-500" />
+                <span>Edit Series Review</span>
+              </button>
+            </div>
+          )}
 
         {/* Curator Editing Form */}
         {isEditing ? (
@@ -233,6 +251,7 @@ export const SeriesDetailModal: React.FC<SeriesDetailModalProps> = ({
           )}
         </div>
 
+        </div>
       </div>
     </div>
   );

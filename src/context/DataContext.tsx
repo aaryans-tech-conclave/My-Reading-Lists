@@ -42,6 +42,7 @@ interface DataContextType {
   markAsBought: (bookId: string) => Promise<void>;
   updateRatingAndReview: (bookId: string, rating: number, review: string) => Promise<void>;
   updateSeriesReview: (seriesId: string, rating: number, review: string) => Promise<void>;
+  addSeries: (series: Omit<SeriesItem, 'id'>) => Promise<string>;
   toggleDailyHabit: (date: string, type: 'physical' | 'audio') => Promise<void>;
   updateGoalTarget: (targetBooks: number) => Promise<void>;
   updateSettings: (updates: Partial<AppSettings>) => Promise<void>;
@@ -303,6 +304,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const addSeries = async (newSeries: Omit<SeriesItem, 'id'>): Promise<string> => {
+    const seriesId = `series-${Date.now()}`;
+    const payload = {
+      ...newSeries,
+      createdAt: new Date().toISOString(),
+    };
+    try {
+      await setDoc(doc(db, 'series', seriesId), payload);
+      return seriesId;
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, `series/${seriesId}`);
+      throw err;
+    }
+  };
+
   const toggleDailyHabit = async (date: string, type: 'physical' | 'audio') => {
     const habitId = `h-${date}`;
     const existingHabit = habits.find((h) => h.date === date);
@@ -458,6 +474,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         markAsBought,
         updateRatingAndReview,
         updateSeriesReview,
+        addSeries,
         toggleDailyHabit,
         updateGoalTarget,
         updateSettings,

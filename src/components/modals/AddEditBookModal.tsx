@@ -21,12 +21,14 @@ const PRESET_SPINE_COLORS = [
 ];
 
 export const AddEditBookModal: React.FC<AddEditBookModalProps> = ({ onClose, initialBook }) => {
-  const { authors, series, addBook, updateBook } = useData();
+  const { authors, series, addBook, updateBook, addSeries } = useData();
   const { accentClass } = useTheme();
 
   const [title, setTitle] = useState(initialBook?.title || '');
   const [authorId, setAuthorId] = useState(initialBook?.author_id || authors[0]?.id || '');
   const [seriesId, setSeriesId] = useState(initialBook?.series_id || '');
+  const [isCreatingNewSeries, setIsCreatingNewSeries] = useState(false);
+  const [newSeriesTitle, setNewSeriesTitle] = useState('');
   const [coverUrl, setCoverUrl] = useState(
     initialBook?.cover_image_url || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=600'
   );
@@ -54,10 +56,23 @@ export const AddEditBookModal: React.FC<AddEditBookModalProps> = ({ onClose, ini
       .slice(0, 8);
 
     try {
+      let resolvedSeriesId = seriesId;
+      if (isCreatingNewSeries && newSeriesTitle.trim()) {
+        resolvedSeriesId = await addSeries({
+          title: newSeriesTitle.trim(),
+          author_id: authorId,
+          status: status === 'Read' ? 'In Progress' : 'Not Started',
+          total_books: 3,
+          books_read: status === 'Read' ? 1 : 0,
+          overall_rating: starRating > 0 ? starRating : 5.0,
+          overall_review: `### Overall Series Reflections on ${newSeriesTitle.trim()}\n\nA magnificent series traversing expansive themes and unforgettable character journeys.`,
+        });
+      }
+
       const payload: Omit<Book, 'id'> = {
         title: title.trim(),
         author_id: authorId,
-        series_id: seriesId || undefined,
+        series_id: resolvedSeriesId || undefined,
         cover_image_url: coverUrl.trim(),
         status,
         format,
@@ -143,19 +158,41 @@ export const AddEditBookModal: React.FC<AddEditBookModalProps> = ({ onClose, ini
             </div>
 
             <div>
-              <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">Series (Optional)</label>
-              <select
-                value={seriesId}
-                onChange={(e) => setSeriesId(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 text-stone-900 dark:text-stone-100 focus:outline-hidden focus:ring-2 focus:ring-amber-500"
-              >
-                <option value="">None (Standalone)</option>
-                {series.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.title}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-medium text-stone-700 dark:text-stone-300">Series (Optional)</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCreatingNewSeries(!isCreatingNewSeries);
+                    setSeriesId('');
+                  }}
+                  className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold hover:underline cursor-pointer"
+                >
+                  {isCreatingNewSeries ? 'Choose Existing Series' : '+ Create New Series'}
+                </button>
+              </div>
+              {isCreatingNewSeries ? (
+                <input
+                  type="text"
+                  placeholder="Enter new series title..."
+                  value={newSeriesTitle}
+                  onChange={(e) => setNewSeriesTitle(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 text-stone-900 dark:text-stone-100 text-xs focus:outline-hidden focus:ring-2 focus:ring-amber-500 font-serif"
+                />
+              ) : (
+                <select
+                  value={seriesId}
+                  onChange={(e) => setSeriesId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 text-stone-900 dark:text-stone-100 focus:outline-hidden focus:ring-2 focus:ring-amber-500"
+                >
+                  <option value="">None (Standalone)</option>
+                  {series.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.title}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
 

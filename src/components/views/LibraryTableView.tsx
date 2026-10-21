@@ -735,7 +735,7 @@ export const LibraryTableView: React.FC<LibraryTableViewProps> = ({ onSelectBook
                       {/* Status Pill */}
                       <td className="py-2.5 px-3">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${theme.pillColor}`}>
-                          ● {formatBookStatus(book.status, book.star_rating)}
+                          ● {book.status}
                         </span>
                       </td>
 

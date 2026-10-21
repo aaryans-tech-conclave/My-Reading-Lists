@@ -135,7 +135,11 @@ export const SeriesView: React.FC<SeriesViewProps> = ({ onSelectBook }) => {
             <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
               {series.map((s) => {
                 const author = authors.find((a) => a.id === s.author_id)?.name;
-                const seriesBooks = books.filter((b) => b.series_id === s.id);
+                const seriesBooks = books.filter(
+                  (b) =>
+                    b.series_id === s.id ||
+                    (b.series_id && s.title && b.series_id.trim().toLowerCase() === s.title.trim().toLowerCase())
+                );
 
                 return (
                   <tr
@@ -162,7 +166,7 @@ export const SeriesView: React.FC<SeriesViewProps> = ({ onSelectBook }) => {
 
                     <td className="py-3 px-4">
                       <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-rose-50 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900">
-                        {s.total_books === 3 ? 'Trilogy' : `${s.total_books}-Book Cycle`}
+                        {seriesBooks.length} {seriesBooks.length === 1 ? 'Volume' : 'Volumes'}
                       </span>
                     </td>
 
@@ -219,22 +223,35 @@ export const SeriesView: React.FC<SeriesViewProps> = ({ onSelectBook }) => {
                   <span>{status}</span>
                   <span className="font-mono text-stone-400">{list.length}</span>
                 </div>
-                {list.map((s) => (
-                  <div
-                    key={s.id}
-                    onClick={() => setSelectedSeries(s)}
-                    className="p-3 bg-white dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 space-y-1.5 shadow-2xs hover:border-amber-400 transition-colors cursor-pointer group"
-                  >
-                    <h4 className="font-serif font-bold text-xs group-hover:text-amber-600 transition-colors">{s.title}</h4>
-                    <span className="text-[10px] text-stone-500 font-mono block">{s.books_read}/{s.total_books} books read</span>
-                    {s.overall_rating && (
-                      <div className="flex items-center space-x-1 text-amber-500 text-[10px] font-mono font-semibold">
-                        <Star className="w-2.5 h-2.5 fill-amber-500" />
-                        <span>{s.overall_rating.toFixed(1)}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                {list.map((s) => {
+                  const sBooks = books.filter(
+                    (b) =>
+                      b.series_id === s.id ||
+                      (b.series_id && s.title && b.series_id.trim().toLowerCase() === s.title.trim().toLowerCase())
+                  );
+                  const regCount = sBooks.length;
+                  const readCount = sBooks.filter((b) => b.status === 'Read').length;
+                  const totalCycle = Math.max(s.total_books || 0, regCount);
+
+                  return (
+                    <div
+                      key={s.id}
+                      onClick={() => setSelectedSeries(s)}
+                      className="p-3 bg-white dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 space-y-1.5 shadow-2xs hover:border-amber-400 transition-colors cursor-pointer group"
+                    >
+                      <h4 className="font-serif font-bold text-xs group-hover:text-amber-600 transition-colors">{s.title}</h4>
+                      <span className="text-[10px] text-stone-500 font-mono block">
+                        {readCount}/{totalCycle} read • {regCount} {regCount === 1 ? 'vol' : 'vols'}
+                      </span>
+                      {s.overall_rating && (
+                        <div className="flex items-center space-x-1 text-amber-500 text-[10px] font-mono font-semibold">
+                          <Star className="w-2.5 h-2.5 fill-amber-500" />
+                          <span>{s.overall_rating.toFixed(1)}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
@@ -245,7 +262,16 @@ export const SeriesView: React.FC<SeriesViewProps> = ({ onSelectBook }) => {
       {activeTab === 'progress' && (
         <div className="space-y-4">
           {series.map((s) => {
-            const pct = Math.round((s.books_read / (s.total_books || 1)) * 100);
+            const sBooks = books.filter(
+              (b) =>
+                b.series_id === s.id ||
+                (b.series_id && s.title && b.series_id.trim().toLowerCase() === s.title.trim().toLowerCase())
+            );
+            const regCount = sBooks.length;
+            const readCount = sBooks.filter((b) => b.status === 'Read').length;
+            const totalCycle = Math.max(s.total_books || 0, regCount);
+            const pct = totalCycle > 0 ? Math.round((readCount / totalCycle) * 100) : 0;
+
             return (
               <div
                 key={s.id}
@@ -254,10 +280,12 @@ export const SeriesView: React.FC<SeriesViewProps> = ({ onSelectBook }) => {
               >
                 <div className="flex justify-between items-center text-xs font-semibold">
                   <span className="group-hover:text-amber-600 transition-colors">{s.title}</span>
-                  <span className="font-mono">{pct}%</span>
+                  <span className="font-mono text-stone-500">
+                    {readCount}/{totalCycle} read ({pct}%)
+                  </span>
                 </div>
                 <div className="w-full bg-stone-100 dark:bg-stone-800 h-2 rounded-full overflow-hidden">
-                  <div className="bg-amber-500 h-full rounded-full" style={{ width: `${pct}%` }} />
+                  <div className="bg-amber-500 h-full rounded-full transition-all duration-300" style={{ width: `${pct}%` }} />
                 </div>
               </div>
             );

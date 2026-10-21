@@ -119,7 +119,7 @@ export const RecentlyBoughtView: React.FC<RecentlyBoughtViewProps> = ({ onSelect
                       {book.total_pages}p
                     </span>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300">
-                      {formatBookStatus(book.status, book.star_rating)}
+                      {book.status}
                     </span>
                   </div>
                 </div>

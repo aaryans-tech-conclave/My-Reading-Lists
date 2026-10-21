@@ -18,7 +18,8 @@ import { GenresView } from './components/views/GenresView';
 import { HabitTrackerWidget } from './components/widgets/HabitTrackerWidget';
 import { ReadingGoalsWidget } from './components/widgets/ReadingGoalsWidget';
 import { NotionDashboard } from './components/notion/NotionDashboard';
-import { ActiveNavTab } from './types';
+import { SeriesDetailModal } from './components/modals/SeriesDetailModal';
+import { ActiveNavTab, SeriesItem } from './types';
 import { Plus, Trash2, RotateCcw, ShieldCheck, Sparkles, HelpCircle } from 'lucide-react';
 
 const MainAppContent: React.FC = () => {
@@ -27,14 +28,26 @@ const MainAppContent: React.FC = () => {
   const [isAddBookOpen, setIsAddBookOpen] = useState(false);
   const [filterAuthorId, setFilterAuthorId] = useState<string | undefined>(undefined);
   const [showAdminHelp, setShowAdminHelp] = useState(false);
+  const [selectedSeriesForModal, setSelectedSeriesForModal] = useState<SeriesItem | null>(null);
 
-  const { selectedBook, setSelectedBook, clearAllBooks, resetToDefaultData, books } = useData();
+  const { selectedBook, setSelectedBook, clearAllBooks, resetToDefaultData, books, series } = useData();
   const { isAdmin, openAuthModal } = useAuth();
   const { theme, accentClass } = useTheme();
 
   const handleSelectAuthor = (authorId: string) => {
     setFilterAuthorId(authorId);
     setActiveTab('my-authors');
+  };
+
+  const handleSelectSeries = (seriesId: string) => {
+    const target = series.find(
+      (s) => s.id === seriesId || (seriesId && s.title.toLowerCase() === seriesId.toLowerCase())
+    );
+    if (target) {
+      setSelectedSeriesForModal(target);
+    } else {
+      setActiveTab('my-series');
+    }
   };
 
   const handleClearSampleBooks = async () => {
@@ -305,6 +318,18 @@ const MainAppContent: React.FC = () => {
           book={selectedBook}
           onClose={() => setSelectedBook(null)}
           onSelectAuthor={handleSelectAuthor}
+          onSelectSeries={handleSelectSeries}
+        />
+      )}
+
+      {selectedSeriesForModal && (
+        <SeriesDetailModal
+          series={selectedSeriesForModal}
+          onClose={() => setSelectedSeriesForModal(null)}
+          onSelectBook={(book) => {
+            setSelectedSeriesForModal(null);
+            setSelectedBook(book);
+          }}
         />
       )}
 

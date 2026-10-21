@@ -25,6 +25,7 @@ import {
   Tag,
   DollarSign,
   Sun,
+  Trash2,
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
@@ -49,13 +50,27 @@ export const NotionDashboard: React.FC<NotionDashboardProps> = ({
 
   const [bookshelfSubTab, setBookshelfSubTab] = useState<'currently' | '2025'>('currently');
   const [isHabitCollapsed, setIsHabitCollapsed] = useState(false);
-  const [reminders, setReminders] = useState<string[]>([
-    'preorder book',
-    'finish Obelisk Gate chapter 12',
-    'check local indie bookstore for Earthsea edition',
-  ]);
+  const [reminders, setReminders] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('folio_reminders');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      'preorder book',
+      'finish Obelisk Gate chapter 12',
+      'check local indie bookstore for Earthsea edition',
+    ];
+  });
   const [newReminderText, setNewReminderText] = useState('');
   const [isAddingReminder, setIsAddingReminder] = useState(false);
+
+  const handleDeleteReminder = (idxToRemove: number) => {
+    const updated = reminders.filter((_, idx) => idx !== idxToRemove);
+    setReminders(updated);
+    try {
+      localStorage.setItem('folio_reminders', JSON.stringify(updated));
+    } catch {}
+  };
 
   // Books categorization
   const currentlyReadingBooks = books.filter((b) => b.status === 'Currently Reading');
@@ -106,7 +121,11 @@ export const NotionDashboard: React.FC<NotionDashboardProps> = ({
   const handleAddReminder = (e: React.FormEvent) => {
     e.preventDefault();
     if (newReminderText.trim()) {
-      setReminders([...reminders, newReminderText.trim()]);
+      const updated = [...reminders, newReminderText.trim()];
+      setReminders(updated);
+      try {
+        localStorage.setItem('folio_reminders', JSON.stringify(updated));
+      } catch {}
       setNewReminderText('');
       setIsAddingReminder(false);
     }
@@ -165,11 +184,26 @@ export const NotionDashboard: React.FC<NotionDashboardProps> = ({
 
             <ul className="space-y-1.5 text-xs text-stone-700 dark:text-stone-300 font-sans pl-1">
               {reminders.map((rem, idx) => (
-                <li key={idx} className="flex items-center space-x-2">
-                  <span className="text-stone-400">•</span>
-                  <span>{rem}</span>
+                <li key={idx} className="flex items-center justify-between group">
+                  <div className="flex items-start space-x-2 min-w-0">
+                    <span className="text-amber-500 font-bold shrink-0 mt-0.5">•</span>
+                    <span className="leading-snug break-words">{rem}</span>
+                  </div>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteReminder(idx)}
+                      title="Delete reminder"
+                      className="p-1 rounded text-stone-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors shrink-0 ml-1.5 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </li>
               ))}
+              {reminders.length === 0 && (
+                <li className="text-stone-400 italic text-[11px]">No active reminders.</li>
+              )}
             </ul>
 
             {isAdmin && isAddingReminder && (
