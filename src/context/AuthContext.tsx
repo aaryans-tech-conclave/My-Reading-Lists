@@ -19,7 +19,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const ADMIN_EMAIL = 'kumar.aaryan2003@gmail.com';
+const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || 'kumar.aaryan2003@gmail.com').toLowerCase();
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -34,9 +34,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Check if returning from redirect sign-in
     getRedirectResult(auth)
-      .then((result) => {
+      .then(async (result) => {
         if (result?.user) {
-          setIsAuthModalOpen(false);
+          const email = result.user.email?.toLowerCase();
+          if (!email || email !== ADMIN_EMAIL) {
+            await signOut(auth);
+            setUser(null);
+            setIsAdmin(false);
+            setIsAuthModalOpen(false);
+          } else {
+            setIsAuthModalOpen(false);
+          }
         }
       })
       .catch((err) => {
@@ -44,22 +52,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
       if (currentUser) {
         // Check email match or admins collection document
-        const isEmailMatch = currentUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+        const isEmailMatch = currentUser.email?.toLowerCase() === ADMIN_EMAIL;
         if (isEmailMatch) {
+          setUser(currentUser);
           setIsAdmin(true);
         } else {
           try {
             const adminDocRef = doc(db, 'admins', currentUser.uid);
             const adminSnap = await getDoc(adminDocRef);
-            setIsAdmin(adminSnap.exists());
+            if (adminSnap.exists()) {
+              setUser(currentUser);
+              setIsAdmin(true);
+            } else {
+              await signOut(auth);
+              setUser(null);
+              setIsAdmin(false);
+            }
           } catch {
+            await signOut(auth);
+            setUser(null);
             setIsAdmin(false);
           }
         }
       } else {
+        setUser(null);
         setIsAdmin(false);
       }
       setIsLoading(false);
@@ -83,7 +101,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithGoogle = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      const email = result.user?.email?.toLowerCase();
+      if (!email || email !== ADMIN_EMAIL) {
+        await signOut(auth);
+        setUser(null);
+        setIsAdmin(false);
+        throw new Error('Incorrect Admin User');
+      }
       setIsAuthModalOpen(false);
     } catch (err) {
       console.error('Google Sign-in failed', err);

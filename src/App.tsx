@@ -20,14 +20,13 @@ import { ReadingGoalsWidget } from './components/widgets/ReadingGoalsWidget';
 import { NotionDashboard } from './components/notion/NotionDashboard';
 import { SeriesDetailModal } from './components/modals/SeriesDetailModal';
 import { ActiveNavTab, SeriesItem } from './types';
-import { Plus, Trash2, RotateCcw, ShieldCheck, Sparkles, HelpCircle } from 'lucide-react';
+import { Plus, Trash2, RotateCcw, ShieldCheck } from 'lucide-react';
 
 const MainAppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveNavTab>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAddBookOpen, setIsAddBookOpen] = useState(false);
   const [filterAuthorId, setFilterAuthorId] = useState<string | undefined>(undefined);
-  const [showAdminHelp, setShowAdminHelp] = useState(false);
   const [selectedSeriesForModal, setSelectedSeriesForModal] = useState<SeriesItem | null>(null);
 
   const { selectedBook, setSelectedBook, clearAllBooks, resetToDefaultData, books, series } = useData();
@@ -123,37 +122,8 @@ const MainAppContent: React.FC = () => {
                 <RotateCcw className="w-3 h-3" />
                 <span className="hidden lg:inline">Reset Samples</span>
               </button>
-
-              <button
-                onClick={() => setShowAdminHelp(!showAdminHelp)}
-                className="p-1 rounded-lg text-amber-800 dark:text-amber-300 hover:bg-amber-500/20"
-                title="How to upload and manage items"
-              >
-                <HelpCircle className="w-4 h-4" />
-              </button>
             </div>
           </div>
-
-          {/* Collapsible Admin Guide Instructions */}
-          {showAdminHelp && (
-            <div className="max-w-7xl mx-auto mt-2 p-3 bg-white/80 dark:bg-stone-900/90 rounded-xl border border-amber-500/30 text-xs text-stone-700 dark:text-stone-300 space-y-1.5 animate-in fade-in">
-              <div className="font-bold text-stone-900 dark:text-stone-100 flex items-center space-x-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>How to upload and curate your personal reading collection:</span>
-              </div>
-              <ol className="list-decimal pl-5 space-y-1 text-[11px] leading-relaxed">
-                <li>
-                  <strong>Delete Mockup Items:</strong> Click the "Delete Mockup Items" button above to clear out all sample books and start with a pristine empty library, or delete individual titles by clicking any book and pressing the red trash can icon.
-                </li>
-                <li>
-                  <strong>Add Your Own Books:</strong> Click "+ Add Book" anywhere in the app (top bar, table header, or "+ New page" rows). Enter title, select or type an author, paste an image URL for the cover, choose status (Read, Currently Reading, TBR), and mark if owned or wishlist.
-                </li>
-                <li>
-                  <strong>Write Reviews & Ratings:</strong> Click any book title or cover anywhere on the dashboard or library. Click "Edit Review & Rating" to assign 0-5 stars (including half-stars) and write formatted markdown reviews that visitors can read!
-                </li>
-              </ol>
-            </div>
-          )}
         </div>
       )}
 
@@ -303,7 +273,7 @@ const MainAppContent: React.FC = () => {
       <footer className="border-t border-stone-200 dark:border-stone-800 py-6 px-4 text-center text-xs text-stone-400 dark:text-stone-500">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center space-x-2">
-            <span className="font-serif font-bold text-stone-700 dark:text-stone-300">Aaryan's</span>
+            <span className="font-serif font-bold text-stone-700 dark:text-stone-300">Aaryan's Reading Lists</span>
           </div>
 
           <div className="text-[11px] text-stone-400">
